@@ -1,5 +1,7 @@
 "use server";
-import { storePost } from '@/lib/posts';
+import { uploadImage } from '@/lib/cloudinary';
+import { storePost, updatePostLikeStatus } from '@/lib/posts';
+import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
 export async function createPost(prevState, formData) {
@@ -28,12 +30,25 @@ export async function createPost(prevState, formData) {
       return { errors };
     }
 
+    let imageUrl;
+    try {
+        imageUrl = await uploadImage(image);
+    } catch (error) {
+        throw new Error('이미지 업로드 실패');
+    }
+
     await storePost({
-      imageUrl: '',
+      imageUrl: imageUrl,
       title,
       content,
       userId: 1
     });
-
+    
+    revalidatePath('/', 'layout'); 
     redirect('/feed');
+  }
+
+  export async function togglePostLikeStatus(postId) {
+    updatePostLikeStatus(postId, 2); //포스트 아이디 1, 사용자 아이디 2로 가정
+    revalidatePath('/', 'layout'); //nextjs에서 캐시방지 업데이트 되면 재검증
   }
